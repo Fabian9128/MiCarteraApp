@@ -1,0 +1,136 @@
+﻿@page "/"
+@page "/cartera"
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+
+<h3>Cartera de Valores</h3>
+
+<button class="btn btn-primary" @onclick="AbrirPopup">Añadir Valor</button>
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <div class="alert alert-info mt-3">@mensaje</div>
+}
+
+@if (mostrarPopup)
+{
+    <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:1050;">
+        <div style="background:white;padding:20px;border-radius:8px;min-width:300px;max-width:90%;box-shadow:0 5px 15px rgba(0,0,0,0.5);position:relative;">
+            <h4>Añadir Valor</h4>
+
+            <EditForm Model="@nuevoValor" OnValidSubmit="GuardarValor">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="form-group mt-2">
+                    <label>ISIN</label>
+                    <InputText class="form-control" @bind-Value="nuevoValor.ISIN" />
+                </div>
+                <div class="form-group mt-2">
+                    <label>Precio Compra</label>
+                    <InputNumber class="form-control" @bind-Value="nuevoValor.PrecioCompra" />
+                </div>
+
+                <div class="mt-3 d-flex justify-content-end gap-2">
+                    <button type="submit" class="btn btn-success">Guardar</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarPopup">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (cartera.Any())
+{
+    <h5 class="mt-4">Valores en cartera</h5>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ISIN</th>
+                <th>Precio Compra</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var v in cartera)
+            {
+                <tr>
+                    <td>@v.ISIN</td>
+                    <td>@v.PrecioCompra</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool mostrarPopup = false;
+    private Valor nuevoValor = new Valor();
+    private List<Valor> cartera = new List<Valor>();
+    private bool jsReady = false;
+    private string mensaje = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            jsReady = true;
+            mensaje = "CarteraValores cargado en navegador";
+            StateHasChanged();
+            await JS.InvokeVoidAsync("console.log", mensaje);
+        }
+    }
+
+    private async Task AbrirPopup()
+    {
+        nuevoValor = new Valor();
+        mostrarPopup = true;
+        mensaje = "Abriendo popup...";
+        StateHasChanged();
+
+        if (jsReady)
+            await JS.InvokeVoidAsync("console.log", "AbrirPopup ejecutado");
+    }
+
+    private async Task CerrarPopup()
+    {
+        mostrarPopup = false;
+        mensaje = "Popup cerrado";
+        StateHasChanged();
+
+        if (jsReady)
+            await JS.InvokeVoidAsync("console.log", "CerrarPopup ejecutado");
+    }
+
+    private async Task GuardarValor()
+    {
+        if (!string.IsNullOrWhiteSpace(nuevoValor.ISIN) && nuevoValor.PrecioCompra > 0)
+        {
+            cartera.Add(new Valor { ISIN = nuevoValor.ISIN, PrecioCompra = nuevoValor.PrecioCompra });
+            mostrarPopup = false;
+            mensaje = $"Valor guardado: ISIN={nuevoValor.ISIN}, Precio={nuevoValor.PrecioCompra}";
+            StateHasChanged();
+
+            if (jsReady)
+                await JS.InvokeVoidAsync("console.log", mensaje);
+        }
+        else
+        {
+            mensaje = "Error: ISIN o Precio inválido";
+            StateHasChanged();
+
+            if (jsReady)
+                await JS.InvokeVoidAsync("console.log", mensaje);
+        }
+    }
+
+    public class Valor
+    {
+        [Required]
+        public string ISIN { get; set; } = string.Empty;
+
+        [Required]
+        public decimal PrecioCompra { get; set; } = 0m;
+    }
+}
